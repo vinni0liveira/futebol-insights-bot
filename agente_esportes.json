@@ -1,0 +1,320 @@
+{
+  "name": "Agente de esportes",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 23
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "80005dc9-e8f6-4fc2-9eb6-ae3f490626c2",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://v3.football.api-sports.io/fixtures",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "date",
+              "value": "={{ $now.format('yyyy-MM-dd') }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-apisports-key",
+              "value": "a131ff833ad2aec6c5fc7aefd83bcec4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "75e12f12-3b17-47a7-98b8-5bc93265bd6e",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nconst jogos = body.response;\n\nif (!jogos || jogos.length === 0) {\n  return [{ json: { mensagem: \"Nenhum jogo hoje.\" } }];\n}\n\n// Ligas que queremos monitorar\nconst ligasAlvo = [71, 73, 2, 3, 39, 140, 135, 61, 78, 13, 11];\n\nconst jogosFiltrados = jogos\n  .filter(j => ligasAlvo.includes(j.league.id))\n  .map(j => ({\n    liga: j.league.name,\n    partida: `${j.teams.home.name} vs ${j.teams.away.name}`,\n    placar: `${j.goals.home ?? '-'} x ${j.goals.away ?? '-'}`,\n    status: j.fixture.status.long,\n    data: new Date(j.fixture.date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),\n    destaque: j.events?.filter(e => e.type === 'Goal')\n      .map(e => `${e.player.name} (${e.time.elapsed}')`)\n      .join(', ') || 'Sem gols'\n  }));\n\n// Agrupar por liga\nconst porLiga = {};\njogosFiltrados.forEach(j => {\n  if (!porLiga[j.liga]) porLiga[j.liga] = [];\n  porLiga[j.liga].push(j);\n});\n\n// Montar mensagem\nlet msg = `*Jogos de hoje - ${new Date().toLocaleDateString('pt-BR')}*\\n\\n`;\n\nfor (const liga in porLiga) {\n  msg += `*${liga}*\\n`;\n  porLiga[liga].forEach(j => {\n    msg += `${j.partida}\\n`;\n    msg += `Placar: ${j.placar} | ${j.status}\\n`;\n    msg += `Horário: ${j.data}\\n`;\n    if (j.destaque !== 'Sem gols') msg += `Gols: ${j.destaque}\\n`;\n    msg += `\\n`;\n  });\n}\n\nreturn [{ json: { mensagem: msg } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "1cc7cdcb-3125-4bad-bcf2-a868000dcf5b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "chatId": "7916733655",
+        "text": "={{ $json.mensagem }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "eeef6c71-2d11-4b3d-ba66-2673bac44547",
+      "name": "Send a text message",
+      "webhookId": "37eb8263-71e3-4512-9041-d34b4dc9751c",
+      "credentials": {
+        "telegramApi": {
+          "id": "D3nB0534OdC9e7Qg",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        224
+      ],
+      "id": "f5f2a9ba-668f-4789-879d-25a39f4dd1cf",
+      "name": "Telegram Trigger",
+      "webhookId": "dc018559-56c6-4ddd-a6a0-9f6ff0b2c5d5",
+      "credentials": {
+        "telegramApi": {
+          "id": "D3nB0534OdC9e7Qg",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "You are Futebol Insights, a Brazilian sports assistant. Always respond in Portuguese.\nAlways use the HTTP tool to fetch real data before answering about games or scores.\nToday's games: https://v3.football.api-sports.io/fixtures?date=2026-05-31\nRecent results by team: https://v3.football.api-sports.io/fixtures?team=ID&last=5\nTeam IDs: Flamengo=127, Palmeiras=121, Corinthians=131, Sao Paulo=126, Botafogo=128\nLeague IDs: Brasileirao=71, Champions=2, Premier League=39"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        240,
+        224
+      ],
+      "id": "3539df7a-5836-45a7-89f9-00b43b573313",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.chat.id }}",
+        "contextWindowLength": 2
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        304,
+        432
+      ],
+      "id": "ff29a12e-e881-43a0-854c-17e942b51824",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Fetches football fixtures from API-Football.\nALWAYS call this tool when asked about games, scores or results.\n\nUse ONLY these URL formats:\n\nToday's games:\nhttps://v3.football.api-sports.io/fixtures?date=2026-05-31\n\nYesterday's games:\nhttps://v3.football.api-sports.io/fixtures?date=2026-05-30\n\nSpecific team recent results (replace ID):\nhttps://v3.football.api-sports.io/fixtures?team=127&last=5\n\nDo NOT use league or season parameters alone.\nTeam IDs: Flamengo=127, Palmeiras=121, Corinthians=131, Sao Paulo=126, Botafogo=128, Gremio=119",
+        "url": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('URL', ``, 'string') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-apisports-key",
+              "value": "a131ff833ad2aec6c5fc7aefd83bcec4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        432
+      ],
+      "id": "30972f88-bca5-4007-9069-8e597496c133",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        592,
+        224
+      ],
+      "id": "0392b62d-ae34-41d3-88ed-a08834038262",
+      "name": "Send a text message1",
+      "webhookId": "54c83903-9911-4729-a6d0-d9a9df32a1bc",
+      "credentials": {
+        "telegramApi": {
+          "id": "D3nB0534OdC9e7Qg",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        112,
+        432
+      ],
+      "id": "390a3ad0-577f-4a59-bf63-29d4d613af42",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ebgcZXvw7Qsqxkfb",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "triggerCount": 2,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

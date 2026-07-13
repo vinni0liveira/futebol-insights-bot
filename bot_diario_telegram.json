@@ -1,0 +1,94 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 23,
+              "triggerAtMinute": 50
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "503a8446-6322-414d-b835-afacdaa20f2d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "# Loop over input items and add a new field called 'my_new_field' to the JSON of each one\nreturn [\n  { json: { league: 71,  season: 2025, name: \"Brasileirão Série A\" } },\n  { json: { league: 39,  season: 2025, name: \"Premier League\" } },\n  { json: { league: 140, season: 2025, name: \"La Liga\" } },\n  { json: { league: 2,   season: 2025, name: \"Champions League\" } },\n  { json: { league: 13,  season: 2025, name: \"Libertadores\" } },\n  { json: { league: 73,  season: 2025, name: \"Copa do Brasil\" } }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "716dddc3-d270-40ad-90b1-b6fd610cbac8",
+      "name": "Code in Python"
+    },
+    {
+      "parameters": {
+        "url": "=     https://v3.football.api-sports.io/fixtures?date={{ DateTime.fromISO($('Schedule Trigger').item.json.timestamp).toFormat('yyyy-MM-dd') }}&league={{ $json.league }}&season={{ $json.season }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-apisports-key",
+              "value": "d5a9edd0257f2562eac2335a2e6bb060"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "740f5d89-6e8e-4deb-9890-dce13c917d65",
+      "name": "HTTP Request"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in Python",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in Python": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": null
+}
