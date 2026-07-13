@@ -58,4 +58,4 @@ Além disso, o mesmo agente também dispara um resumo automático agendado (`Sch
 
 ---
 
-*Projeto pessoal desenvolvido para aplicar conceitos de automação, integração de APIs e IA generativa em um contexto prático e de interesse pessoal.*
+*Projeto acadêmico desenvolvido para aplicar conceitos de automação, integração de APIs e IA generativa em um contexto prático e de interesse pessoal.*
